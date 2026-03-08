@@ -1,0 +1,17 @@
+# Models (Heavy binaries)
+models/
+!models/.gitkeep
+yolov8n.pt
+
+# Data & Database
+data/known_faces.pkl
+
+# Tests & Media (Heavy)
+test ml/
+
+# Python/System
+__pycache__/
+.DS_Store
+*.pyc
+venv/
+.env

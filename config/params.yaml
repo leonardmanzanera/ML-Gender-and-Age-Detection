@@ -1,0 +1,36 @@
+# Antigravity Vision Configuration
+model:
+  ssd:
+    prototxt: "models/deploy.prototxt"
+    caffemodel: "models/res10_300x300_ssd_iter_140000.caffemodel"
+    confidence_threshold: 0.5
+    input_size: [300, 300]
+    mean_values: [104.0, 177.0, 123.0]
+    scale_factor: 1.0
+
+  age:
+    prototxt: "models/age_deploy.prototxt"
+    caffemodel: "models/age_net.caffemodel"
+    confidence_threshold: 0.5
+    input_size: [227, 227]
+    mean_values: [78.4263377603, 87.7689143744, 114.895847746]
+    scale_factor: 1.0
+    bins: ["(0-2)", "(4-6)", "(8-12)", "(15-20)", "(25-32)", "(38-43)", "(48-53)", "(60-100)"]
+
+  gender:
+    prototxt: "models/gender_deploy.prototxt"
+    caffemodel: "models/gender_net.caffemodel"
+    confidence_threshold: 0.5
+    input_size: [227, 227]
+    mean_values: [78.4263377603, 87.7689143744, 114.895847746]
+    scale_factor: 1.0
+    categories: ["Male", "Female"]
+
+smoothing:
+  window_size: 10 # Nombre de frames pour la moyenne mobile / mode
+
+ui:
+  font_scale: 0.6
+  box_color: [0, 255, 0] # BGR
+  text_color: [255, 255, 255]
+  bg_color: [0, 0, 0]

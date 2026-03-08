@@ -1,0 +1,22 @@
+# AG Vision - Requirements for Mac M1 (Apple Silicon)
+
+# M1 compatibility core issues (NumPy 2.x breaks mediapipe and dlib)
+numpy==1.26.4
+opencv-python==4.10.0.84
+opencv-contrib-python==4.10.0.84
+
+# Deep Learning & Models
+torch>=2.0.0
+torchvision>=0.15.0
+onnxruntime>=1.15.0
+ultralytics>=8.0.0
+
+# Face Recognition (requires cmake to build dlib)
+dlib>=19.24.0
+face_recognition>=1.3.0
+
+# Pose Estimation
+mediapipe>=0.10.32
+
+# Configuration
+pyyaml>=6.0
