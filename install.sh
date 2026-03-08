@@ -34,6 +34,10 @@ python3 -m pip install cmake
 echo "[*] Installing Python dependencies (this may take a few minutes for dlib)..."
 python3 -m pip install -r requirements.txt
 
+# Download missing models
+echo "[*] Downloading ML models (this may take a few minutes)..."
+python3 scripts/setup.py
+
 if [ $? -eq 0 ]; then
     echo "=================================================="
     echo "✅ Setup Complete!"

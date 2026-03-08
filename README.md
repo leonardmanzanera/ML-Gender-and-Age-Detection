@@ -36,7 +36,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-*(La compilation de `dlib` peut prendre 2 à 3 minutes sur un Mac M1).*
+*(Ce script va configurer l'environnement virtuel, compiler `dlib`, et **télécharger automatiquement tous les modèles nécessaires** (~400 Mo)).*
 
 ---
 
