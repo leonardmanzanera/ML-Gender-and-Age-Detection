@@ -10,6 +10,7 @@ torch>=2.0.0
 torchvision>=0.15.0
 onnxruntime>=1.15.0
 ultralytics>=8.0.0
+lapx>=0.5.5  # Required for YOLOv8 .track()
 
 # Face Recognition (requires cmake to build dlib)
 dlib>=19.24.0
