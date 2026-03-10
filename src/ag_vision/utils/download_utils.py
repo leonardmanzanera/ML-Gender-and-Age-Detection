@@ -1,17 +1,21 @@
 import os
 import urllib.request
+import ssl
 
 def download_file(url, path):
-    """Downloads a file with a browser-like User-Agent."""
+    """Downloads a file with a browser-like User-Agent and ignores SSL cert errors."""
     if not os.path.exists(path):
         print(f"[*] Downloading : {os.path.basename(path)}...")
-        opener = urllib.request.build_opener()
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        
+        opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ctx))
         opener.addheaders = [('User-agent', 'Mozilla/5.0')]
         urllib.request.install_opener(opener)
         urllib.request.urlretrieve(url, path)
         print(f" [+] Success.")
     else:
-        # print(f" [V] {os.path.basename(path)} already present.")
         pass
 
 def get_model_path(filename, models_dir="models"):

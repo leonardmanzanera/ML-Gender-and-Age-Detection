@@ -11,15 +11,22 @@ import numpy as np
 
 try:
     import mediapipe as mp
-except ImportError:
-    print("[!] mediapipe not installed. Aesthetic Engine disabled.")
-    mp = None
+    from mediapipe.tasks.python import BaseOptions
+    from mediapipe.tasks.python.vision import (
+        FaceLandmarker,
+        FaceLandmarkerOptions,
+        RunningMode,
+    )
+    HAS_MP = True
+except (ImportError, AttributeError):
+    HAS_MP = False
+    print("[!] mediapipe Tasks API not available. Aesthetic Engine disabled.")
+
 
 # Golden Ratio constant
 PHI = 1.6180339887
 
 # ─── MediaPipe Face Mesh landmark indices ───
-# Reference: https://github.com/google/mediapipe/blob/master/mediapipe/modules/face_geometry/data/canonical_face_model_uv_visualization.png
 LM = {
     # Vertical axis
     "forehead_top":    10,
@@ -55,7 +62,6 @@ LM = {
     "jaw_right":      361,
 }
 
-# Symmetry pairs: (left_landmark, right_landmark)
 SYMMETRY_PAIRS = [
     ("left_eye_outer",  "right_eye_outer"),
     ("left_eye_inner",  "right_eye_inner"),
@@ -75,74 +81,81 @@ class AestheticEngine:
     """
 
     def __init__(self):
-        if mp is None:
-            self.mesh = None
+        self.landmarker = None
+        if not HAS_MP:
             return
 
-        self.mp_face_mesh = mp.solutions.face_mesh
-        self.mesh = self.mp_face_mesh.FaceMesh(
-            static_image_mode=False,
-            max_num_faces=1,
-            refine_landmarks=True,
-            min_detection_confidence=0.5,
+        model_path = self._ensure_model()
+        if model_path is None:
+            return
+
+        options = FaceLandmarkerOptions(
+            base_options=BaseOptions(model_asset_path=model_path),
+            running_mode=RunningMode.IMAGE,
+            num_faces=1,
+            min_face_detection_confidence=0.5,
+            min_face_presence_confidence=0.5,
             min_tracking_confidence=0.5,
         )
-        print(" [+] AestheticEngine: Ready (Golden Ratio + Symmetry)")
+        self.landmarker = FaceLandmarker.create_from_options(options)
+        print(" [+] AestheticEngine: Ready (Golden Ratio + Symmetry via Tasks API)")
+
+    @staticmethod
+    def _ensure_model():
+        """Ensure the face landmarker model is available."""
+        import os
+        root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        model_dir = os.path.join(root, "models")
+        model_path = os.path.join(model_dir, "face_landmarker.task")
+
+        if os.path.exists(model_path):
+            return model_path
+
+        from ag_vision.utils.download_utils import download_file
+        url = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task"
+        try:
+            download_file(url, model_path)
+            return model_path
+        except Exception as e:
+            print(f" [!] Failed to download face model: {e}")
+            return None
 
     def _get_point(self, landmarks, key, w, h):
-        """Get (x, y) pixel coordinates for a named landmark."""
         idx = LM[key]
         lm = landmarks[idx]
         return (lm.x * w, lm.y * h)
 
     def _dist(self, p1, p2):
-        """Euclidean distance between two points."""
         return math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
 
     def _phi_score(self, ratio):
-        """
-        Score how close a ratio is to the Golden Ratio (PHI).
-        Returns 0.0 (worst) to 1.0 (perfect match).
-        """
         deviation = abs(ratio - PHI) / PHI
         return max(0.0, 1.0 - deviation * 2.0)
 
     def _ratio_score(self, ratio, ideal):
-        """
-        Score how close a ratio is to an ideal value.
-        Returns 0.0 (worst) to 1.0 (perfect match).
-        """
         if ideal == 0:
             return 0.0
         deviation = abs(ratio - ideal) / ideal
         return max(0.0, 1.0 - deviation * 2.0)
 
     def analyze(self, bgr_crop):
-        """
-        Analyze a face crop and return aesthetic scores.
-        Returns dict with keys:
-          - golden_score (float 0-10)
-          - symmetry_pct (float 0-100)
-          - phi_pct (float 0-100)
-          - ratios (dict of individual ratio details)
-        Returns None if no face mesh detected.
-        """
-        if self.mesh is None:
+        if self.landmarker is None:
             return None
 
         h, w = bgr_crop.shape[:2]
         if h < 20 or w < 20:
             return None
 
-        # MediaPipe expects RGB
         import cv2
         rgb = cv2.cvtColor(bgr_crop, cv2.COLOR_BGR2RGB)
-        results = self.mesh.process(rgb)
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+        
+        result = self.landmarker.detect(mp_image)
 
-        if not results.multi_face_landmarks:
+        if not result.face_landmarks or len(result.face_landmarks) == 0:
             return None
 
-        landmarks = results.multi_face_landmarks[0].landmark
+        landmarks = result.face_landmarks[0]
 
         # ─── 1. Golden Ratio Proportions ───
         forehead = self._get_point(landmarks, "forehead_top", w, h)

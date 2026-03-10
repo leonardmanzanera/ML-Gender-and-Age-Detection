@@ -74,14 +74,10 @@ class PostureCoach:
         if os.path.exists(model_path):
             return model_path
 
-        # Download the model
-        print("[*] Downloading MediaPipe Pose model...")
-        os.makedirs(model_dir, exist_ok=True)
+        from ag_vision.utils.download_utils import download_file
         url = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task"
         try:
-            import urllib.request
-            urllib.request.urlretrieve(url, model_path)
-            print(f" [+] Pose model saved to {model_path}")
+            download_file(url, model_path)
             return model_path
         except Exception as e:
             print(f" [!] Failed to download pose model: {e}")
