@@ -40,8 +40,12 @@ LM = {
     # Eyes — outer & inner corners
     "left_eye_outer":  33,
     "left_eye_inner": 133,
+    "left_eye_top":    159,
+    "left_eye_bottom": 145,
     "right_eye_inner":362,
     "right_eye_outer":263,
+    "right_eye_top":   386,
+    "right_eye_bottom":374,
 
     # Eyebrows — outer edges
     "left_brow_outer": 46,
@@ -60,6 +64,9 @@ LM = {
     # Jaw
     "jaw_left":       132,
     "jaw_right":      361,
+
+    # Forehead center
+    "forehead_center": 151,
 }
 
 SYMMETRY_PAIRS = [
@@ -236,15 +243,97 @@ class AestheticEngine:
 
         symmetry_score = sum(sym_scores) / len(sym_scores) if sym_scores else 0.5
 
-        # ─── 3. Final Golden Score (0-10) ───
-        # 60% phi + 40% symmetry
-        final = (phi_score * 0.6 + symmetry_score * 0.4) * 10.0
-        final = round(min(10.0, max(0.0, final)), 1)
+        # ─── 3. Regard (Eye Analysis) ───
+        # Canthal Tilt: angle between inner and outer corners (positive if outer is higher -> lower y)
+        left_tilt = math.degrees(math.atan2(l_eye_i[1] - l_eye_o[1], l_eye_o[0] - l_eye_i[0]))
+        right_tilt = math.degrees(math.atan2(r_eye_i[1] - r_eye_o[1], r_eye_i[0] - r_eye_o[0]))
+        avg_tilt = (left_tilt + right_tilt) / 2.0
+        # Positive tilt (e.g., 5-8 degrees) is often considered attractive
+        tilt_score = max(0.0, 10.0 - abs(avg_tilt - 6.0) * 1.0)
+        
+        # Eye Openness
+        l_eye_t = self._get_point(landmarks, "left_eye_top", w, h)
+        l_eye_b = self._get_point(landmarks, "left_eye_bottom", w, h)
+        r_eye_t = self._get_point(landmarks, "right_eye_top", w, h)
+        r_eye_b = self._get_point(landmarks, "right_eye_bottom", w, h)
+        
+        l_openness = self._dist(l_eye_t, l_eye_b) / left_eye_w if left_eye_w > 1 else 0
+        r_openness = self._dist(r_eye_t, r_eye_b) / right_eye_w if right_eye_w > 1 else 0
+        avg_openness = (l_openness + r_openness) / 2.0
+        openness_score = 10.0 if 0.3 < avg_openness < 0.5 else max(0.0, 10.0 - abs(avg_openness - 0.4)*20)
+        
+        regard_score = round(min(10.0, tilt_score * 0.6 + openness_score * 0.4), 1)
+
+        # ─── 4. Sourire (Smile Index) ───
+        jaw_l = self._get_point(landmarks, "jaw_left", w, h)
+        jaw_r = self._get_point(landmarks, "jaw_right", w, h)
+        jaw_width = self._dist(jaw_l, jaw_r)
+        
+        mouth_jaw_ratio = mouth_width / jaw_width if jaw_width > 1 else 0
+        mouth_openness = self._dist(upper_lip, lower_lip)
+        openness_ratio = mouth_openness / mouth_width if mouth_width > 1 else 0
+        
+        smile_score = 5.0  # Base neutral score
+        if mouth_jaw_ratio > 0.40:
+            smile_score += (mouth_jaw_ratio - 0.40) * 40  # Boost for wider mouth
+        if openness_ratio > 0.05:
+            smile_score += 2.0  # Boost for open lips
+        smile_score = round(min(10.0, max(0.0, smile_score)), 1)
+
+        # ─── 5. Teint (Skin Texture) ───
+        # Extract patches from cheeks and forehead to measure variance (smoothness)
+        gray = cv2.cvtColor(bgr_crop, cv2.COLOR_BGR2GRAY)
+        variances = []
+        patch_size = max(5, int(w * 0.05))
+        
+        fh_center = self._get_point(landmarks, "forehead_center", w, h)
+        # Approximate cheek centers by moving down from eye and out from nose
+        l_cheek_inner = (l_eye_b[0], nose_l[1])
+        r_cheek_inner = (r_eye_b[0], nose_r[1])
+        
+        for pt in [fh_center, l_cheek_inner, r_cheek_inner]:
+            x, y = int(pt[0]), int(pt[1])
+            x1, y1 = max(0, x - patch_size), max(0, y - patch_size)
+            x2, y2 = min(w, x + patch_size), min(h, y + patch_size)
+            patch = gray[y1:y2, x1:x2]
+            if patch.size > 0:
+                var = cv2.Laplacian(patch, cv2.CV_64F).var()
+                variances.append(var)
+                
+        if variances:
+            avg_var = sum(variances) / len(variances)
+            # Higher variance = sharper edges/more pores. Lower = smoother.
+            teint_score = max(0.0, 10.0 - (avg_var / 50.0))
+        else:
+            teint_score = 5.0
+        teint_score = round(teint_score, 1)
+
+        # ─── 6. Final Golden Score (0-10) ───
+        # Base aesthetic score (60% phi + 40% symmetry)
+        base_score = (phi_score * 0.6 + symmetry_score * 0.4) * 10.0
+        
+        # Add slight boosts from Regard, Sourire, Teint
+        boost = 0.0
+        if smile_score > 7.0: boost += 0.3
+        if regard_score > 8.0: boost += 0.2
+        if teint_score > 8.0: boost += 0.2
+        
+        final = round(min(10.0, max(0.0, base_score + boost)), 1)
+        
+        radar_scores = {
+            "Symmetry": round(symmetry_score * 10.0, 1),
+            "Phi": round(phi_score * 10.0, 1),
+            "Regard": regard_score,
+            "Sourire": smile_score,
+            "Teint": teint_score
+        }
 
         return {
             "golden_score": final,
+            "radar": radar_scores,
             "symmetry_pct": round(symmetry_score * 100, 1),
             "phi_pct": round(phi_score * 100, 1),
+            "raw_landmarks": landmarks, # Passed for drawing the Golden Mask
             "ratios": {
                 "face_h_w": round(r1, 3),
                 "eye_inter": round(r2, 3),

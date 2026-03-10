@@ -59,54 +59,82 @@ def score_color(score):
         return (100, 100, 100)
 
 
-def draw_beauty_gauge(display, x1, y1, x2, y2, score, sym_pct, phi_pct):
-    """Draw a compact beauty gauge next to the face bounding box."""
-    gauge_x = x2 + 5
-    gauge_w = 120
-    gauge_h = y2 - y1
-    if gauge_h < 60:
-        gauge_h = 60
-
-    color = score_color(score)
+def draw_radar_chart(display, x1, y1, x2, y2, aes_result):
+    """Draw a 5-axis radar chart next to the face."""
+    import math
+    gauge_x = x2 + 10
+    gauge_y = y1
+    gauge_w = 160
+    gauge_h = 200
+    
+    golden_score = aes_result["golden_score"]
+    color = score_color(golden_score)
 
     # Background panel
-    cv2.rectangle(display, (gauge_x, y1), (gauge_x + gauge_w, y1 + gauge_h),
+    cv2.rectangle(display, (gauge_x, gauge_y), (gauge_x + gauge_w, gauge_y + gauge_h),
                   (20, 20, 20), -1)
-    cv2.rectangle(display, (gauge_x, y1), (gauge_x + gauge_w, y1 + gauge_h),
+    cv2.rectangle(display, (gauge_x, gauge_y), (gauge_x + gauge_w, gauge_y + gauge_h),
                   color, 1)
 
     # Title
-    cv2.putText(display, "GOLDEN SCORE", (gauge_x + 5, y1 + 15),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.35, color, 1)
+    cv2.putText(display, "AESTHETIC RADAR", (gauge_x + 5, gauge_y + 15),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
 
     # Big score number
-    score_text = f"{score:.1f}"
-    cv2.putText(display, score_text, (gauge_x + 15, y1 + 50),
-                cv2.FONT_HERSHEY_DUPLEX, 1.0, color, 2)
-    cv2.putText(display, "/ 10", (gauge_x + 75, y1 + 50),
+    score_text = f"{golden_score:.1f}"
+    cv2.putText(display, score_text, (gauge_x + 10, gauge_y + 50),
+                cv2.FONT_HERSHEY_DUPLEX, 1.2, color, 2)
+    cv2.putText(display, "/ 10", (gauge_x + 85, gauge_y + 45),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.4, (150, 150, 150), 1)
 
-    # Sub-scores
-    bar_y = y1 + 65
-    if bar_y + 40 < y1 + gauge_h:
-        # Symmetry bar
-        cv2.putText(display, f"SYM: {sym_pct:.0f}%", (gauge_x + 5, bar_y),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.3, (200, 200, 200), 1)
-        bar_fill_s = int((sym_pct / 100.0) * (gauge_w - 10))
-        cv2.rectangle(display, (gauge_x + 5, bar_y + 3),
-                      (gauge_x + 5 + gauge_w - 10, bar_y + 10), (50, 50, 50), -1)
-        cv2.rectangle(display, (gauge_x + 5, bar_y + 3),
-                      (gauge_x + 5 + bar_fill_s, bar_y + 10), color, -1)
+    # Radar
+    cx = gauge_x + 80
+    cy = gauge_y + 130
+    radius = 50
 
-        # Phi bar
-        bar_y2 = bar_y + 20
-        cv2.putText(display, f"PHI: {phi_pct:.0f}%", (gauge_x + 5, bar_y2),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.3, (200, 200, 200), 1)
-        bar_fill_p = int((phi_pct / 100.0) * (gauge_w - 10))
-        cv2.rectangle(display, (gauge_x + 5, bar_y2 + 3),
-                      (gauge_x + 5 + gauge_w - 10, bar_y2 + 10), (50, 50, 50), -1)
-        cv2.rectangle(display, (gauge_x + 5, bar_y2 + 3),
-                      (gauge_x + 5 + bar_fill_p, bar_y2 + 10), color, -1)
+    # 5 axes: Sym, Phi, Regard, Sourire, Teint
+    labels = ["Sym", "Phi", "Regard", "Sourire", "Teint"]
+    keys = ["Symmetry", "Phi", "Regard", "Sourire", "Teint"]
+    radar_data = aes_result["radar"]
+    
+    # Draw axes
+    angles = [math.pi/2 + (2 * math.pi * i / 5) for i in range(5)]
+    points = []
+    
+    for i in range(5):
+        # Background polygon
+        bx = int(cx + radius * math.cos(angles[i]))
+        by = int(cy - radius * math.sin(angles[i]))
+        cv2.line(display, (cx, cy), (bx, by), (60, 60, 60), 1)
+        
+        # Label
+        lx = int(cx + (radius+15) * math.cos(angles[i])) - 15
+        ly = int(cy - (radius+10) * math.sin(angles[i])) + 5
+        cv2.putText(display, labels[i], (lx, ly), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (150, 150, 150), 1)
+        
+        # Value point
+        val = radar_data.get(keys[i], 5.0) / 10.0
+        px = int(cx + (radius * val) * math.cos(angles[i]))
+        py = int(cy - (radius * val) * math.sin(angles[i]))
+        points.append([px, py])
+
+    # Draw data polygon with alpha blending
+    overlay = display.copy()
+    pts = np.array(points, np.int32).reshape((-1, 1, 2))
+    cv2.fillPoly(overlay, [pts], color)
+    cv2.addWeighted(overlay, 0.4, display, 0.6, 0, display)
+    cv2.polylines(display, [pts], isClosed=True, color=color, thickness=2)
+
+
+def draw_golden_mask(display, landmarks, crop_x, crop_y, crop_w, crop_h):
+    """Draws a translucent golden point cloud representing the Face Mesh."""
+    overlay = display.copy()
+    for lm in landmarks:
+        px = int(lm.x * crop_w) + crop_x
+        py = int(lm.y * crop_h) + crop_y
+        cv2.circle(overlay, (px, py), 1, GOLD, -1)
+    
+    cv2.addWeighted(overlay, 0.3, display, 0.7, 0, display)
 
 
 def draw_hud(frame, fps, modules, active_tracks):
@@ -141,8 +169,9 @@ def main():
     print("  FEATURE: Golden Ratio (Phi) + Symmetry scoring.")
     print("  Keyboard Controls:")
     print("    [f] Toggle Face ID")
-    print("    [p] Toggle Privacy Shield")
     print("    [o] Toggle Posture Coach")
+    print("    [m] Toggle 3D Golden Mask")
+    print("    [p] Toggle Privacy Shield")
     print("    [r] Register Your Face (Terminal Input)")
     print("    [c] Clear Face Database")
     print("    [q] Quit")
@@ -167,10 +196,17 @@ def main():
 
     # Module Toggles
     modules = {
+        "m": ["Golden Mask", False],
+        "o": ["Posture", HAS_POSTURE],
         "f": ["Face ID", HAS_FACE_ID],
         "p": ["Privacy", False],
-        "o": ["Posture", HAS_POSTURE],
     }
+
+    # Auto-Capture Best Shot Setup
+    best_scores = {}
+    best_shot_alert = 0
+    BEST_SHOT_DIR = os.path.join(PROJECT_ROOT, "data", "best_shots")
+    os.makedirs(BEST_SHOT_DIR, exist_ok=True)
 
     cap = init_camera()
     if not cap:
@@ -259,6 +295,18 @@ def main():
                     if new_result is not None:
                         aes_result = new_result
                         aesthetic_cache[track_id] = aes_result
+                        
+                        # --- Best Shot Capture ---
+                        score = aes_result["golden_score"]
+                        if score >= 8.0:
+                            if track_id not in best_scores or score > best_scores[track_id]:
+                                best_scores[track_id] = score
+                                # Save the frame!
+                                filename = f"best_shot_ID{track_id}_{score:.1f}_{int(now)}.jpg"
+                                cv2.imwrite(os.path.join(BEST_SHOT_DIR, filename), frame)
+                                best_shot_alert = now
+                                print(f" [📸] BEST PROFILE CAPTURED! Score: {score:.1f}")
+
                     aesthetic_last_update[track_id] = now
 
                 # ---- MODULE: Face ID ----
@@ -310,14 +358,16 @@ def main():
                     cv2.putText(display, label, (x1 + 5, y1 - 15),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.45, box_color, 2)
 
-                    # Draw detailed gauge panel
-                    if aes_result:
-                        draw_beauty_gauge(
-                            display, x1, y1, x2, y2,
-                            aes_result["golden_score"],
-                            aes_result["symmetry_pct"],
-                            aes_result["phi_pct"]
+                    # Draw Golden Mask Overley if active
+                    if modules["m"][1] and aes_result:
+                        draw_golden_mask(
+                            display, aes_result["raw_landmarks"],
+                            x1, y1, (x2-x1), (y2-y1)
                         )
+
+                    # Draw Radar Chart UI
+                    if aes_result:
+                        draw_radar_chart(display, x1, y1, x2, y2, aes_result)
 
         # FPS
         curr = time.time()
@@ -326,6 +376,12 @@ def main():
 
         # HUD
         draw_hud(display, fps, modules, active_tracks)
+        
+        # Best Shot Notification Flash
+        if (curr - best_shot_alert) < 2.0:
+            cv2.rectangle(display, (0, 0), (w, h), (0, 215, 255), 4)
+            cv2.putText(display, "[📸] BEST SHOT CAPTURED!", (w - 280, h - 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, GOLD, 2)
 
         cv2.imshow("Antigravity V10 AESTHETICS", display)
 
@@ -339,6 +395,9 @@ def main():
         elif key == ord('p'):
             modules["p"][1] = not modules["p"][1]
             print(f"[Toggle] Privacy: {'ON' if modules['p'][1] else 'OFF'}")
+        elif key == ord('m'):
+            modules["m"][1] = not modules["m"][1]
+            print(f"[Toggle] Mask Overlay: {'ON' if modules['m'][1] else 'OFF'}")
         elif key == ord('o') and HAS_POSTURE:
             modules["o"][1] = not modules["o"][1]
             print(f"[Toggle] Posture: {'ON' if modules['o'][1] else 'OFF'}")
