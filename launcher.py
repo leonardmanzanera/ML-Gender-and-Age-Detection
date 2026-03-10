@@ -21,6 +21,7 @@ def main():
         print(" [6] V5: UNIFIED VISION (Objects + Async ViT)")
         print(" [7] 🧠 ULTIMATE (Objects + ViT + Face ID + Posture + Privacy)")
         print(" [8] 🚀 V8 TRACKED (Multi-Person Optimised)")
+        print(" [9] 🚨 V9 WATCHLIST (Most Wanted Face Matching)")
         print(" [q] Quitter")
         
         choice = input("\nVotre choix : ").strip().lower()
@@ -33,7 +34,8 @@ def main():
             '5': "v4_object_detection.py",
             '6': "v5_unified_vision.py",
             '7': "v_ultimate.py",
-            '8': "v8_tracked.py"
+            '8': "v8_tracked.py",
+            '9': "v9_watchlist.py"
         }
         
         if choice in pipeline_map:
