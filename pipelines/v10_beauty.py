@@ -92,9 +92,9 @@ def draw_radar_chart(display, x1, y1, x2, y2, aes_result):
     cy = gauge_y + 130
     radius = 50
 
-    # 5 axes: Sym, Phi, Regard, Sourire, Teint
-    labels = ["Sym", "Phi", "Regard", "Sourire", "Teint"]
-    keys = ["Symmetry", "Phi", "Regard", "Sourire", "Teint"]
+    # 5 axes: Sym, Phi, Regard, Harmonie, Teint
+    labels = ["Sym", "Phi", "Regard", "Harmonie", "Teint"]
+    keys = ["Symmetry", "Phi", "Regard", "Harmonie", "Teint"]
     radar_data = aes_result["radar"]
     
     # Draw axes

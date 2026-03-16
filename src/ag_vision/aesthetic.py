@@ -137,13 +137,13 @@ class AestheticEngine:
 
     def _phi_score(self, ratio):
         deviation = abs(ratio - PHI) / PHI
-        return max(0.0, 1.0 - deviation * 2.0)
+        return max(0.0, 1.0 - deviation * 1.5)
 
     def _ratio_score(self, ratio, ideal):
         if ideal == 0:
             return 0.0
         deviation = abs(ratio - ideal) / ideal
-        return max(0.0, 1.0 - deviation * 2.0)
+        return max(0.0, 1.0 - deviation * 1.5)
 
     def analyze(self, bgr_crop):
         if self.landmarker is None:
@@ -264,21 +264,24 @@ class AestheticEngine:
         
         regard_score = round(min(10.0, tilt_score * 0.6 + openness_score * 0.4), 1)
 
-        # ─── 4. Sourire (Smile Index) ───
-        jaw_l = self._get_point(landmarks, "jaw_left", w, h)
-        jaw_r = self._get_point(landmarks, "jaw_right", w, h)
-        jaw_width = self._dist(jaw_l, jaw_r)
+        # ─── 4. Harmonie Verticale (Facial Thirds) ───
+        # Top 1/3: Hairline (approx forehead_top) to Brow
+        # Mid 1/3: Brow to Nose base
+        # Low 1/3: Nose base to Chin
+        third_1 = abs(brow_center_y - forehead[1])
+        third_2 = abs(nose_tip[1] - brow_center_y)
+        third_3 = abs(chin[1] - nose_tip[1])
         
-        mouth_jaw_ratio = mouth_width / jaw_width if jaw_width > 1 else 0
-        mouth_openness = self._dist(upper_lip, lower_lip)
-        openness_ratio = mouth_openness / mouth_width if mouth_width > 1 else 0
-        
-        smile_score = 5.0  # Base neutral score
-        if mouth_jaw_ratio > 0.40:
-            smile_score += (mouth_jaw_ratio - 0.40) * 40  # Boost for wider mouth
-        if openness_ratio > 0.05:
-            smile_score += 2.0  # Boost for open lips
-        smile_score = round(min(10.0, max(0.0, smile_score)), 1)
+        avg_third = (third_1 + third_2 + third_3) / 3.0
+        harmonie_score = 10.0
+        if avg_third > 1:
+            dev1 = abs(third_1 - avg_third) / avg_third
+            dev2 = abs(third_2 - avg_third) / avg_third
+            dev3 = abs(third_3 - avg_third) / avg_third
+            total_dev = (dev1 + dev2 + dev3) / 3.0
+            # A 10% average deviation drops the score by 1.5 points
+            harmonie_score = max(0.0, 10.0 - (total_dev * 15.0))
+        harmonie_score = round(harmonie_score, 1)
 
         # ─── 5. Teint (Skin Texture) ───
         # Extract patches from cheeks and forehead to measure variance (smoothness)
@@ -310,11 +313,11 @@ class AestheticEngine:
 
         # ─── 6. Final Golden Score (0-10) ───
         # Base aesthetic score (60% phi + 40% symmetry)
-        base_score = (phi_score * 0.6 + symmetry_score * 0.4) * 10.0
+        base_score = (phi_score * 0.5 + symmetry_score * 0.5) * 10.0
         
-        # Add slight boosts from Regard, Sourire, Teint
+        # Add slight boosts from Regard, Harmonie, Teint
         boost = 0.0
-        if smile_score > 7.0: boost += 0.3
+        if harmonie_score > 7.0: boost += 0.3
         if regard_score > 8.0: boost += 0.2
         if teint_score > 8.0: boost += 0.2
         
@@ -324,7 +327,7 @@ class AestheticEngine:
             "Symmetry": round(symmetry_score * 10.0, 1),
             "Phi": round(phi_score * 10.0, 1),
             "Regard": regard_score,
-            "Sourire": smile_score,
+            "Harmonie": harmonie_score,
             "Teint": teint_score
         }
 
