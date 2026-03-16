@@ -136,9 +136,9 @@ def main():
                     continue
 
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
-                cv2.rectangle(display, (x1, y1), (x2, y2), (180, 180, 180), 1)
+                cv2.rectangle(display, (x1, y1), (x2, y2), (0, 255, 150), 1)
                 cv2.putText(display, label, (x1, y1 - 5),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1)
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 150), 1)
 
         # ---- PIPELINE B: Faces (TRACKED) ----
         # V8 KEY CHANGE: .track() instead of .predict()
