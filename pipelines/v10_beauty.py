@@ -20,7 +20,7 @@ from ag_vision.utils.config_utils import load_config
 from ag_vision.utils.camera import init_camera
 from ag_vision.engine_tracked import TrackedViTEngine
 from ag_vision.utils.download_utils import get_model_path
-from ag_vision.aesthetic import AestheticEngine
+from ag_vision.engine_aesthetic import AsyncAestheticEngine
 
 # Optional modules (graceful fallback)
 try:
@@ -187,8 +187,8 @@ def main():
     # V8: TrackedViTEngine
     tracked_engine = TrackedViTEngine(get_model_path("vit_age_gender.onnx"))
 
-    # V10: Aesthetic Engine
-    aesthetic = AestheticEngine()
+    # V10: Aesthetic Engine (async — analyze() runs in background thread)
+    aesthetic = AsyncAestheticEngine()
 
     # Optional Modules
     face_registry = FaceRegistry() if HAS_FACE_ID else None
@@ -216,10 +216,8 @@ def main():
     last_submit = {}
     SUBMIT_INTERVAL = 0.4
 
-    # Cache aesthetic results per track ID to avoid computing every frame
-    aesthetic_cache = {}
     aesthetic_last_update = {}
-    AESTHETIC_INTERVAL = 0.8  # seconds between aesthetic recalculations
+    AESTHETIC_INTERVAL = 0.8  # seconds between aesthetic submissions
 
     while True:
         ret, frame = cap.read()
@@ -298,25 +296,21 @@ def main():
                 gen_str = vit_res["gender"]
 
                 # ---- MODULE: Aesthetic Engine ----
-                aes_result = aesthetic_cache.get(track_id)
                 if (now - aesthetic_last_update.get(track_id, 0)) > AESTHETIC_INTERVAL:
-                    new_result = aesthetic.analyze(face_crop)
-                    if new_result is not None:
-                        aes_result = new_result
-                        aesthetic_cache[track_id] = aes_result
-                        
-                        # --- Best Shot Capture ---
-                        score = aes_result["golden_score"]
-                        if score >= 8.0:
-                            if track_id not in best_scores or score > best_scores[track_id]:
-                                best_scores[track_id] = score
-                                # Save the frame!
-                                filename = f"best_shot_ID{track_id}_{score:.1f}_{int(now)}.jpg"
-                                cv2.imwrite(os.path.join(BEST_SHOT_DIR, filename), frame)
-                                best_shot_alert = now
-                                print(f" [📸] BEST PROFILE CAPTURED! Score: {score:.1f}")
-
+                    aesthetic.submit(track_id, face_crop)
                     aesthetic_last_update[track_id] = now
+
+                aes_result = aesthetic.get_result(track_id)
+
+                # --- Best Shot Capture ---
+                if aes_result is not None:
+                    score = aes_result["golden_score"]
+                    if score >= 8.0 and (track_id not in best_scores or score > best_scores[track_id]):
+                        best_scores[track_id] = score
+                        filename = f"best_shot_ID{track_id}_{score:.1f}_{int(now)}.jpg"
+                        cv2.imwrite(os.path.join(BEST_SHOT_DIR, filename), frame)
+                        best_shot_alert = now
+                        print(f" [📸] BEST PROFILE CAPTURED! Score: {score:.1f}")
 
                 # ---- MODULE: Face ID ----
                 person_name = None
@@ -428,6 +422,7 @@ def main():
     cap.release()
     cv2.destroyAllWindows()
     tracked_engine.stop()
+    aesthetic.stop()
     print("[+] Session V10 terminée.")
 
 
