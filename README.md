@@ -32,8 +32,8 @@ cd ml-gender-age-detection
 Ce script va créer un environnement virtuel (optionnel mais recommandé), installer dlib (qui nécessite la compilation), et installer toutes les dépendances.
 
 ```bash
-chmod +x install.sh
-./install.sh
+chmod +x scripts/install.sh
+./scripts/install.sh
 ```
 
 *(Ce script va configurer l'environnement virtuel, compiler `dlib`, et **télécharger automatiquement tous les modèles nécessaires** (~400 Mo)).*

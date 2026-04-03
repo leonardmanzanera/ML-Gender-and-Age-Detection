@@ -10,10 +10,11 @@ sys.path.append(os.path.join(PROJECT_ROOT, "src"))
 
 from ag_vision.config_utils import load_config
 from ag_vision.camera import init_camera
+from ag_vision.utils.download_utils import get_model_path
 
 def main():
     print("[*] Starting Pipeline V4: General Object Detection...")
-    model = YOLO("yolov8n.pt")
+    model = YOLO(get_model_path("yolov8n.pt"))
     cap = init_camera()
     
     prev_time = 0

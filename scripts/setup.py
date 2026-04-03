@@ -26,7 +26,7 @@ def main():
         
     # YOLO COCO
     print("[*] Pre-caching YOLOv8 COCO...")
-    YOLO("yolov8n.pt")
+    YOLO(get_model_path("yolov8n.pt"))
     
     print("\n[SUCCESS] Environment is fully provisioned.")
 

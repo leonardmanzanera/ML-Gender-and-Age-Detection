@@ -73,7 +73,7 @@ def main():
     
     # Core Models
     print("[*] Loading Core Models...")
-    model_obj = YOLO("yolov8n.pt")
+    model_obj = YOLO(get_model_path("yolov8n.pt"))
     model_face = YOLO(get_model_path("yolov8n-face.pt"))
     async_vit = AsyncViTEngine(get_model_path("vit_age_gender.onnx"))
     smoother = TemporalSmoother()
