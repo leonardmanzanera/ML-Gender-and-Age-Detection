@@ -16,8 +16,8 @@ from ultralytics import YOLO
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(os.path.join(PROJECT_ROOT, "src"))
 
-from ag_vision.config_utils import load_config
-from ag_vision.camera import init_camera
+from ag_vision.utils.config_utils import load_config
+from ag_vision.utils.camera import init_camera
 from ag_vision.engine_tracked import TrackedViTEngine
 from ag_vision.utils.download_utils import get_model_path
 
