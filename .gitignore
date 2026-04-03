@@ -15,3 +15,5 @@ __pycache__/
 *.pyc
 venv/
 .env
+.gemini/
+data/best_shots/
