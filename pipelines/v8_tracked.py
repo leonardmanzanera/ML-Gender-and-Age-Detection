@@ -119,7 +119,16 @@ def main():
         # ---- MODULE: Posture Coach ----
         if modules["o"][1] and posture_coach:
             posture_result = posture_coach.analyze(frame)
-            display = posture_coach.draw_skeleton(display, posture_result)
+            landmarks = posture_result.get("landmarks")
+            if landmarks is not None:
+                skel_color = (0, 255, 0) if posture_result["status"] == "good" else (0, 0, 255)
+                for s, e in [(11, 12), (7, 11), (8, 12), (11, 23), (12, 24), (23, 24)]:
+                    if s < len(landmarks) and e < len(landmarks):
+                        cv2.line(display, (int(landmarks[s].x * w), int(landmarks[s].y * h)),
+                                 (int(landmarks[e].x * w), int(landmarks[e].y * h)), skel_color, 2)
+                for idx in [7, 8, 11, 12, 23, 24]:
+                    if idx < len(landmarks):
+                        cv2.circle(display, (int(landmarks[idx].x * w), int(landmarks[idx].y * h)), 4, skel_color, -1)
 
             if posture_result.get("alert"):
                 cv2.rectangle(display, (0, h - 50), (w, h), (0, 0, 200), -1)

@@ -151,37 +151,6 @@ class PostureCoach:
             "landmarks": self.latest_landmarks,
         }
 
-    def draw_skeleton(self, frame, result):
-        """Draw a simple skeleton on the frame."""
-        landmarks = result.get("landmarks")
-        if landmarks is None:
-            return frame
-
-        h, w = frame.shape[:2]
-        color = (0, 255, 0) if result["status"] == "good" else (0, 0, 255)
-
-        # Draw key connections (simplified skeleton)
-        connections = [
-            (self.LEFT_SHOULDER, self.RIGHT_SHOULDER),
-            (self.LEFT_EAR, self.LEFT_SHOULDER),
-            (self.RIGHT_EAR, self.RIGHT_SHOULDER),
-            (11, 23), (12, 24), (23, 24),  # torso
-        ]
-
-        for start, end in connections:
-            if start < len(landmarks) and end < len(landmarks):
-                pt1 = (int(landmarks[start].x * w), int(landmarks[start].y * h))
-                pt2 = (int(landmarks[end].x * w), int(landmarks[end].y * h))
-                cv2.line(frame, pt1, pt2, color, 2)
-
-        # Draw key points
-        for idx in [self.LEFT_EAR, self.RIGHT_EAR, self.LEFT_SHOULDER, self.RIGHT_SHOULDER, 23, 24]:
-            if idx < len(landmarks):
-                pt = (int(landmarks[idx].x * w), int(landmarks[idx].y * h))
-                cv2.circle(frame, pt, 4, color, -1)
-
-        return frame
-
     def reset_timer(self):
         """Reset the break timer."""
         self.session_start = time.time()
