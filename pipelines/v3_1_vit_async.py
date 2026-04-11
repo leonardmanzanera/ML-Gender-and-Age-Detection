@@ -34,7 +34,7 @@ def main():
         frame = cv2.flip(frame, 1)
         h, w = frame.shape[:2]
         
-        results = yolo_model.predict(source=frame, conf=0.5, verbose=False)
+        results = yolo_model.predict(source=frame, conf=0.5, verbose=False, imgsz=320, device="mps")
         fps = 1 / (time.time() - prev_time) if (time.time() - prev_time) > 0 else 0
         prev_time = time.time()
         
