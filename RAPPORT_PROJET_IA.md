@@ -26,7 +26,7 @@
 
 ## 1. Introduction et Motivations
 
-L'analyse faciale automatisée constitue aujourd'hui un domaine central de la vision par ordinateur, avec des applications couvrant la sécurité publique, l'analyse démographique en points de vente, la cosmétique assistée par intelligence artificielle et le bien-être numérique. Les modèles pré-entraînés open source — qu'il s'agisse de détecteurs de visages, d'estimateurs d'âge ou de systèmes de reconnaissance d'identité — sont individuellement performants dans leur domaine de spécialisation, mais présentent chacun des limitations intrinsèques lorsqu'ils sont utilisés de manière isolée.
+L'analyse faciale automatisée constitue aujourd'hui un domaine central de la vision par ordinateur, avec des applications couvrant la sécurité publique, l'analyse démographique en points de vente, la cosmétique assistée par intelligence artificielle, le **bien-être numérique** (coaching postural, gestion du temps d'écran) et la **protection de la vie privée** (anonymisation conforme RGPD). Les modèles pré-entraînés open source — qu'il s'agisse de détecteurs de visages, d'estimateurs d'âge ou de systèmes de reconnaissance d'identité — sont individuellement performants dans leur domaine de spécialisation, mais présentent chacun des limitations intrinsèques lorsqu'ils sont utilisés de manière isolée.
 
 Le constat fondateur de ce projet est le suivant : un Vision Transformer (ViT) pré-entraîné pour la régression d'âge atteint une erreur absolue moyenne (MAE) remarquable d'environ 4,5 ans, mais présente un biais systématique en classification de genre, prédisant « Female » dans environ 70 % des cas indépendamment du sujet réel. Inversement, un réseau convolutif classique de type AlexNet entraîné sur le framework Caffe offre une classification binaire de genre fiable (> 95 % de précision), mais ne dispose pas de la granularité nécessaire pour une estimation d'âge fine, se limitant à des intervalles discrets de 5 à 10 ans.
 
@@ -237,6 +237,26 @@ Le thread principal (boucle caméra) appelle `submit()` et `get_result()` sans j
 
 **Figure 4 : Impact de l'Architecture Asynchrone sur les Performances (4 FPS bloquant vs. 11 FPS asynchrone)**
 
+### 3.6 Modules Complémentaires : Posture Coach et Privacy Shield
+
+Le système intègre deux modules fonctionnels supplémentaires qui enrichissent l'expérience utilisateur au-delà de l'analyse faciale pure.
+
+**Posture Coach (7ᵉ modèle — MediaPipe Pose Landmarker).** Le `PostureCoach` exploite le modèle `pose_landmarker_lite.task` de MediaPipe pour analyser la posture de l'utilisateur en temps réel. Le module détecte 33 landmarks corporels (épaules, oreilles, hanches) et calcule l'angle d'inclinaison entre l'oreille et l'épaule par rapport à la verticale. Un angle supérieur à 25° déclenche une alerte visuelle invitant l'utilisateur à se redresser. Un système de rappel de pause se déclenche après 30 minutes de session continue.
+
+Ce module constitue le 7ᵉ modèle du système et justifie la diversité architecturale revendiquée, car il s'appuie sur une architecture de type **Graph Neural Network** distincte des CNN, Transformers et détecteurs single-shot utilisés par les autres composants. La liste exhaustive des 7 modèles est la suivante :
+
+| # | Modèle | Famille | Rôle |
+|---|--------|---------|------|
+| 1 | YOLOv8n | Détecteur single-shot | Détection d'objets (80 classes COCO) |
+| 2 | YOLOv8n-Face | Détecteur single-shot | Détection de visages + BoT-SORT tracking |
+| 3 | ViT ONNX | Vision Transformer | Régression d'âge continue |
+| 4 | Caffe CNN (gender_net) | CNN (AlexNet) | Classification de genre binaire |
+| 5 | dlib ResNet-34 | CNN (ResNet) | Reconnaissance faciale (embeddings 128D) |
+| 6 | MediaPipe Face Mesh | GNN | Extraction de 468 landmarks 3D |
+| 7 | MediaPipe Pose Landmarker | GNN | Analyse posturale (33 landmarks corporels) |
+
+**Privacy Shield.** Le module de protection de la vie privée applique un floutage gaussien paramétrable sur les visages non identifiés dans la base de données. Cette fonctionnalité, activable via la touche `[p]`, répond aux exigences de conformité RGPD dans les contextes de déploiement impliquant des personnes non-consentantes (espaces publics, démonstrations pédagogiques). Les visages enregistrés dans la Watchlist restent visibles, permettant un fonctionnement en mode semi-anonyme.
+
 ---
 
 ## 4. Difficultés Techniques et Solutions
@@ -292,6 +312,8 @@ Le système a été validé sur les scénarios suivants :
 <!-- FIGURE 7 : Screenshot de V10 avec le Radar Chart et le Golden Score -->
 
 **[ESPACE RÉSERVÉ — Figure 7 : Capture d'écran V10 Aesthetics — Radar Chart et Golden Score]**
+
+**Scénario 4 — Privacy Shield (V10).** Lorsque le module Privacy Shield est activé (touche `[p]`), le système applique un floutage gaussien (`cv2.GaussianBlur`, rayon configurable) sur l'ensemble des visages non identifiés dans la base de données. Les visages enregistrés restent visibles, permettant un fonctionnement en mode semi-anonyme. Cette fonctionnalité répond aux exigences de conformité RGPD dans les contextes de déploiement où des personnes non-consentantes peuvent apparaître dans le champ de la caméra (espaces publics, démonstrations en classe).
 
 ---
 

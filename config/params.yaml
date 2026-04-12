@@ -9,8 +9,8 @@ model:
     scale_factor: 1.0
 
   age:
-    prototxt: "models/age_deploy.prototxt"
-    caffemodel: "models/age_net.caffemodel"
+    prototxt: "models/legacy/age_deploy.prototxt"
+    caffemodel: "models/legacy/age_net.caffemodel"
     confidence_threshold: 0.5
     input_size: [227, 227]
     mean_values: [78.4263377603, 87.7689143744, 114.895847746]
@@ -27,7 +27,7 @@ model:
     categories: ["Male", "Female"]
 
 smoothing:
-  window_size: 10 # Nombre de frames pour la moyenne mobile / mode
+  window_size: 8 # Nombre de frames pour la moyenne mobile / mode (unifié avec TrackedViTEngine)
 
 ui:
   font_scale: 0.6

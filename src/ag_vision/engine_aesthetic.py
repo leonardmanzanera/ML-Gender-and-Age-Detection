@@ -21,6 +21,11 @@ class AsyncAestheticEngine:
         stop()                  — join the worker thread
     """
 
+    # Queue intentionally smaller than TrackedViTEngine (8) because aesthetic
+    # analysis (~80ms) is faster than ViT inference (~120ms). A small queue
+    # favors freshness: if it overflows, deque(maxlen=4) silently ejects the
+    # oldest crop — we prefer analyzing the latest face over processing stale
+    # frames.
     MAX_QUEUE_SIZE = 4
 
     def __init__(self):

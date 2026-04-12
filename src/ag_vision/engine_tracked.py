@@ -17,6 +17,7 @@ import collections
 import copy
 import numpy as np
 import onnxruntime as ort
+from ag_vision.smoother import TemporalSmoother
 
 
 class TrackedViTEngine:
@@ -26,6 +27,9 @@ class TrackedViTEngine:
     """
 
     GENDER_LIST = ['Male', 'Female']
+    # Larger queue than AsyncAestheticEngine (4) because ViT inference is
+    # slower (~120ms). With 3 people in frame, 8 slots provide ~2.6 frames
+    # of buffering before oldest crops are silently ejected by deque(maxlen).
     MAX_QUEUE_SIZE = 8        # Max pending crops in queue
     MAX_STALE_FRAMES = 30     # Purge IDs not seen for N frames
     SMOOTHING_WINDOW = 8      # Moving average window per person
@@ -58,8 +62,7 @@ class TrackedViTEngine:
         self.lock = threading.Lock()
         self.queue = collections.deque(maxlen=self.MAX_QUEUE_SIZE)
         self.results = {}       # {track_id: {"age": ..., "gender": ..., ...}}
-        self.age_history = {}   # {track_id: deque of raw ages}
-        self.gender_history = {}  # {track_id: deque of (gender, prob)}
+        self.smoother = TemporalSmoother(window_size=self.SMOOTHING_WINDOW)
         self.last_seen = {}     # {track_id: frame_counter}
         self.frame_counter = 0
 
@@ -125,8 +128,7 @@ class TrackedViTEngine:
             ]
             for tid in stale_ids:
                 self.results.pop(tid, None)
-                self.age_history.pop(tid, None)
-                self.gender_history.pop(tid, None)
+                self.smoother.purge(tid)
                 self.last_seen.pop(tid, None)
 
     def get_result(self, track_id):
@@ -140,34 +142,6 @@ class TrackedViTEngine:
             )
 
     # ─────────────────────── Worker Thread ───────────────────────
-
-    def _smooth_age(self, track_id, raw_age):
-        """Moving average for age per track ID."""
-        if track_id not in self.age_history:
-            self.age_history[track_id] = collections.deque(
-                maxlen=self.SMOOTHING_WINDOW
-            )
-        self.age_history[track_id].append(raw_age)
-        return int(sum(self.age_history[track_id]) / len(self.age_history[track_id]))
-
-    def _smooth_gender(self, track_id, gender_str, gender_prob):
-        """Moving mode for gender per track ID."""
-        if track_id not in self.gender_history:
-            self.gender_history[track_id] = collections.deque(
-                maxlen=self.SMOOTHING_WINDOW
-            )
-        self.gender_history[track_id].append((gender_str, gender_prob))
-
-        counts = collections.Counter(
-            [item[0] for item in self.gender_history[track_id]]
-        )
-        mode_val = counts.most_common(1)[0][0]
-        probs = [
-            item[1] for item in self.gender_history[track_id]
-            if item[0] == mode_val
-        ]
-        avg_prob = sum(probs) / len(probs) if probs else 0.0
-        return mode_val, avg_prob
 
     def _worker_loop(self):
         """Background thread: processes the queue FIFO."""
@@ -212,15 +186,19 @@ class TrackedViTEngine:
 
                 t_clf = (time.time() - t0) * 1000
 
-                # --- Smooth & Store per ID ---
+                # --- Smooth & Store per ID (delegated to TemporalSmoother) ---
                 with self.lock:
-                    smoothed_age = raw_age
                     if isinstance(raw_age, (int, float)):
-                        smoothed_age = self._smooth_age(track_id, raw_age)
-
-                    smoothed_gen, smoothed_prob = self._smooth_gender(
-                        track_id, gen_str, gen_conf
-                    )
+                        smoothed_age_str, _, smoothed_gen, smoothed_prob = \
+                            self.smoother.update_and_get(
+                                track_id, raw_age, 1.0, gen_str, gen_conf,
+                                is_regression=True
+                            )
+                        smoothed_age = int(smoothed_age_str)
+                    else:
+                        smoothed_age = raw_age
+                        smoothed_gen = gen_str
+                        smoothed_prob = gen_conf
 
                     self.results[track_id] = {
                         "age": smoothed_age,

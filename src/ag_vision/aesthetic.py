@@ -67,6 +67,11 @@ LM = {
 
     # Forehead center
     "forehead_center": 151,
+
+    # Midline reference points (robust to head roll)
+    "nose_bridge":    168,   # Dorsum of nose — anatomical midline
+    "sellion":          6,   # Between the eyes
+    "pronasale":        4,   # Tip of nose bridge
 }
 
 SYMMETRY_PAIRS = [
@@ -89,6 +94,7 @@ class AestheticEngine:
 
     def __init__(self):
         self.landmarker = None
+        self._warned_incomplete = False  # Throttle landmark warnings
         if not HAS_MP:
             return
 
@@ -164,6 +170,15 @@ class AestheticEngine:
 
         landmarks = result.face_landmarks[0]
 
+        # ─── P0 Guard: validate landmark count ───
+        # MediaPipe should return 468 landmarks but may return fewer on
+        # extreme profiles (>60° yaw) or partially occluded faces.
+        if len(landmarks) < 468:
+            if not self._warned_incomplete:
+                print(f"[AestheticEngine] Warning: expected 468 landmarks, got {len(landmarks)}. Skipping.")
+                self._warned_incomplete = True
+            return None
+
         # ─── 1. Golden Ratio Proportions ───
         forehead = self._get_point(landmarks, "forehead_top", w, h)
         chin     = self._get_point(landmarks, "chin_bottom", w, h)
@@ -223,8 +238,13 @@ class AestheticEngine:
         phi_score = (s1 + s2 + s3 + s4 + s5) / 5.0
 
         # ─── 2. Bilateral Symmetry ───
-        # Midline = average X of forehead_top and chin_bottom
-        midline_x = (forehead[0] + chin[0]) / 2.0
+        # Midline = average X of 3 anatomical central points.
+        # Using nose_bridge (168), sellion (6), pronasale (4) instead of
+        # forehead+chin average, which drifts with head roll.
+        nb = self._get_point(landmarks, "nose_bridge", w, h)
+        sl = self._get_point(landmarks, "sellion", w, h)
+        pn = self._get_point(landmarks, "pronasale", w, h)
+        midline_x = (nb[0] + sl[0] + pn[0]) / 3.0
 
         sym_scores = []
         for left_key, right_key in SYMMETRY_PAIRS:
@@ -305,8 +325,10 @@ class AestheticEngine:
                 
         if variances:
             avg_var = sum(variances) / len(variances)
-            # Higher variance = sharper edges/more pores. Lower = smoother.
-            teint_score = max(0.0, 10.0 - (avg_var / 50.0))
+            # Log-scaling: more stable across different cameras & lighting.
+            # log1p(50) ≈ 3.93 → score ~1.3 (textured); log1p(1) ≈ 0.69 → score ~8.5 (smooth).
+            log_var = math.log1p(avg_var)
+            teint_score = max(0.0, min(10.0, 10.0 - (log_var / 0.45)))
         else:
             teint_score = 5.0
         teint_score = round(teint_score, 1)

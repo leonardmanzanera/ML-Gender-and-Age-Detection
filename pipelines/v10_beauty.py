@@ -46,6 +46,9 @@ BRONZE     = (0, 100, 180)
 WHITE      = (255, 255, 255)
 BLACK      = (0, 0, 0)
 
+# Privacy Shield: configurable blur intensity
+PRIVACY_BLUR_RADIUS = 99  # Gaussian kernel size (must be odd)
+
 
 def score_color(score):
     """Return a color based on the score tier."""
@@ -322,7 +325,7 @@ def main():
 
                 # ---- MODULE: Privacy Shield ----
                 if modules["p"][1] and not is_known:
-                    blurred = cv2.GaussianBlur(face_crop, (99, 99), 30)
+                    blurred = cv2.GaussianBlur(face_crop, (PRIVACY_BLUR_RADIUS, PRIVACY_BLUR_RADIUS), 30)
                     display[max(0, y1):min(h, y2), max(0, x1):min(w, x2)] = blurred
                     cv2.rectangle(display, (x1, y1), (x2, y2), (0, 0, 255), 2)
                     cv2.putText(display, "MASKED", (x1, y1 - 10),
