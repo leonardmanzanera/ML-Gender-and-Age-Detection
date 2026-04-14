@@ -34,7 +34,7 @@ def main():
             '4': "v3_1_vit_async.py",
             '5': "v4_object_detection.py",
             '6': "v5_unified_vision.py",
-            '7': "v_ultimate.py",
+            '7': "v6_ultimate.py",
             '8': "v8_tracked.py",
             '9': "v9_watchlist.py",
             '10': "v10_beauty.py"

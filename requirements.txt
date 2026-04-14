@@ -1,23 +1,39 @@
-# AG Vision - Requirements for Mac M1 (Apple Silicon)
+# ─────────────────────────────────────────────────────────────────
+# AG Vision (HybridFace) — Python Dependencies
+# ─────────────────────────────────────────────────────────────────
+#
+# IMPORTANT — Compatibility notes:
+#   • NumPy must be < 2.0. NumPy 2.x breaks mediapipe and dlib.
+#   • opencv-python and opencv-contrib-python must share the same
+#     version to avoid symbol conflicts.
+#   • dlib requires CMake to be installed BEFORE pip install.
+#     → On macOS: brew install cmake
+#     → On Ubuntu: sudo apt-get install cmake
+#
+# Install with: pip install -r requirements.txt
+# ─────────────────────────────────────────────────────────────────
 
-# M1 compatibility core issues (NumPy 2.x breaks mediapipe and dlib)
+# ── Core numerical & vision ──────────────────────────────────────
 numpy==1.26.4
 opencv-python==4.10.0.84
 opencv-contrib-python==4.10.0.84
 
-# Deep Learning & Models
+# ── Deep Learning runtimes ───────────────────────────────────────
 torch>=2.0.0
 torchvision>=0.15.0
 onnxruntime>=1.15.0
-ultralytics>=8.0.0
-lapx>=0.5.5  # Required for YOLOv8 .track()
 
-# Face Recognition (requires cmake to build dlib)
+# ── Object / face detection & tracking ───────────────────────────
+ultralytics>=8.0.0
+lapx>=0.5.5          # Required by YOLOv8 .track() (BoT-SORT / ByteTrack)
+
+# ── Face recognition ─────────────────────────────────────────────
+# dlib must be compiled from source — cmake is required (see above)
 dlib>=19.24.0
 face_recognition>=1.3.0
 
-# Pose Estimation
+# ── Pose & face landmark estimation ─────────────────────────────
 mediapipe>=0.10.32
 
-# Configuration
+# ── Configuration ────────────────────────────────────────────────
 pyyaml>=6.0

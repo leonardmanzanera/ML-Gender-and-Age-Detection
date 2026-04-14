@@ -1,19 +1,36 @@
-# Models (Heavy binaries)
-models/
+# ─── Models (Heavy binaries — auto-downloaded by scripts/setup.py) ───────────
+models/*.pt
+models/*.onnx
+models/*.caffemodel
+models/*.task
+models/legacy/*.caffemodel
+models/legacy/*.prototxt
 !models/.gitkeep
-yolov8n.pt
 
-# Data & Database
+# ─── Data & Face Database ────────────────────────────────────────────────────
 data/known_faces.pkl
+data/best_shots/
 
-# Tests & Media (Heavy)
+# ─── Tests & Media ───────────────────────────────────────────────────────────
 test ml/
 
-# Python/System
-__pycache__/
-.DS_Store
-*.pyc
+# ─── Virtual environments ────────────────────────────────────────────────────
+ag_env/
+.venv/
 venv/
+env/
+
+# ─── Python cache ────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ─── IDE & OS ────────────────────────────────────────────────────────────────
+.DS_Store
 .env
 .gemini/
-data/best_shots/
+.claude/
+
+# ─── Figures générées (optionnel — décommenter pour les exclure) ─────────────
+# figures/
