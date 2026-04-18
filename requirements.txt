@@ -37,3 +37,6 @@ mediapipe>=0.10.32
 
 # ── Configuration ────────────────────────────────────────────────
 pyyaml>=6.0
+
+# ── Visualisation (chronogrammes, figures rapport) ───────────────
+matplotlib>=3.7.0

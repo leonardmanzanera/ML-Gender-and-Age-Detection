@@ -45,7 +45,7 @@ Système d'analyse faciale en temps réel combinant **7 modèles hétérogènes*
 | 4 | **V3.1 ViT Async** | YOLOv8 + ViT ONNX asynchrone (architecture optimale) |
 | 5 | V4 Objets | Détection d'objets COCO uniquement |
 | 6 | V5 Unified | Objets + ViT Async (combiné) |
-| 7 | V6 Ultimate | Objets + ViT + Face ID + Posture + Privacy |
+| 7 | **V6 Ultimate** | Objets + ViT + Face ID + Posture + Privacy |
 | 8 | **V8 Tracked** | Multi-personnes avec IDs isolés (recommandé pour démo) |
 | 9 | V9 Watchlist | Reconnaissance + alerte en cas de correspondance |
 | 10 | **V10 Aesthetics** | Analyse de beauté (Nombre d'Or + Symétrie + Radar Chart) |
@@ -169,11 +169,11 @@ AG Vision/
 │   └── v10_beauty.py              ← V10: Analyse esthétique Nombre d'Or
 │
 ├── src/ag_vision/                 ← Package Python principal
-│   ├── aesthetic.py               ← Moteur d'analyse beauté (468 landmarks)
-│   ├── engine_async.py            ← Moteur asynchrone ViT+Caffe (V3.1-V6)
-│   ├── engine_tracked.py          ← Moteur multi-personnes avec IDs (V8+)
-│   ├── engine_aesthetic.py        ← Wrapper async pour AestheticEngine
-│   ├── face_registry.py           ← Base de données embeddings visages
+│   ├── aesthetic.py               ← Calcul beauté (Phi, symétrie, 468 landmarks)
+│   ├── engine_async.py            ← Moteur async ViT+Caffe — Thread+Queue (V3.1–V6)
+│   ├── engine_tracked.py          ← Moteur multi-personnes avec IDs isolés (V8+)
+│   ├── engine_aesthetic.py        ← Wrapper async AestheticEngine — Thread+Queue (V10)
+│   ├── face_registry.py           ← Base de données embeddings 128D (dlib)
 │   ├── posture_coach.py           ← Détection posture (MediaPipe Pose)
 │   ├── smoother.py                ← Lissage temporel (Moving Average/Mode)
 │   ├── watchlist.py               ← Gestion liste de reconnaissance
@@ -196,11 +196,16 @@ AG Vision/
 ├── data/
 │   └── known_faces.pkl            ← Base de données des visages enregistrés
 │
-├── figures/                       ← Figures pour le rapport
+├── figures/                       ← Figures (architecture, landmarks, benchmarks)
+│   ├── fig1_architecture.png
+│   ├── fig2_landmarks_phi.png
+│   ├── fig3_radar_chart.png
+│   └── chronogram_v3_vs_v31.png  ← Comparatif sync/async frame-by-frame
 │
 └── scripts/
-    ├── install.sh                 ← Script d'installation automatique
-    └── setup.py                   ← Téléchargement des modèles ML
+    ├── install.sh                 ← Script d'installation automatique (macOS)
+    ├── setup.py                   ← Téléchargement des modèles ML (~450 Mo)
+    └── chronogram_v3_vs_v31.py   ← Génération du chronogramme de performance
 ```
 
 ---
@@ -222,7 +227,7 @@ AG Vision/
 ## ⚠️ Notes techniques
 
 ### Compatibilité M1 / Apple Silicon
-Le projet est optimisé pour **Mac M1/M2/M3**. YOLO est configuré pour utiliser le fournisseur CPU par défaut (MPS désactivé pour compatibilité maximale avec `onnxruntime`).
+Le projet est optimisé pour **Mac M1/M2/M3**. YOLO est configuré avec `device="mps"` et `imgsz=320` dans V3.1 pour exploiter le GPU Metal (8× plus rapide que CPU). Sur machine non-Apple, remplacer `device="mps"` par `device="cpu"` dans `pipelines/v3_1_vit_async.py`.
 
 ### Conflits de dépendances connus
 | Problème | Solution |
@@ -235,11 +240,13 @@ Le projet est optimisé pour **Mac M1/M2/M3**. YOLO est configuré pour utiliser
 | Pipeline | FPS attendus | Description |
 |----------|-------------|-------------|
 | V1 (baseline) | 15–20 | SSD + Caffe, traitement CPU |
-| V3 (synchrone) | 3–5 | ViT bloquant le thread principal |
-| V3.1 (async) | 9–12 | ViT en thread parallèle |
-| V10 (complet) | 6–10 | 2×YOLO+ViT+MediaPipe simultanés |
+| V3 (synchrone) | 3–5 | ViT bloquant le thread principal (démonstation du bottleneck) |
+| V3.1 (async, sans fix) | 9–12 | ViT en thread parallèle, YOLO encore bloquant |
+| V3.1 (async + MPS fix) | 25–45 | YOLO sur Metal GPU + imgsz=320 |
+| V8/V9 (tracked) | 12–20 | Multi-personnes + isolation des IDs |
+| V10 (complet) | 6–10 | 2×YOLO + ViT + MediaPipe simultanés |
 
-> Les FPS affichés représentent la **cadence du thread d'affichage**. Les inférences lourdes s'exécutent en parallèle sur des workers asynchrones.
+> Les FPS affichés représentent la **cadence du thread d'affichage**. Les inférences lourdes (ViT ~120ms, aesthetic ~80ms) s'exécutent en parallèle sur des workers asynchrones dédiés.
 
 ---
 
